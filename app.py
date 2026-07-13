@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "gizli_anahtar_degistir"
+app.secret_key = "123"
 # Test için SQLite. Render'a atarken burayı PostgreSQL URI'si ile değiştireceksin.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ciftlik.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
