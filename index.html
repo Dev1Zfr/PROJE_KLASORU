@@ -1,0 +1,41 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2 class="mb-4">Mevcut Hayvanlar & Satış Vitrini</h2>
+<div class="row">
+    {% for hayvan in hayvanlar %}
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+                <span>Küpe No: {{ hayvan.kupe_no }}</span>
+            </div>
+            <div class="card-body">
+                <p><strong>Irk:</strong> {{ hayvan.irk }}</p>
+                <p><strong>Fiyat:</strong> {{ hayvan.alis_fiyati }} ₺</p>
+                <hr>
+                <p><strong>Alış KG:</strong> {{ hayvan.alis_kg }} kg</p>
+                <p class="text-primary fs-5"><strong>Güncel KG:</strong> {{ hayvan.guncel_kg }} kg</p>
+                <p class="text-danger fw-bold">Günlük Artış: +{{ hayvan.gunluk_artis }} kg/gün</p>
+
+                <!-- Kilo Geçmişi Butonu -->
+                <div class="d-grid mb-3">
+                    <a href="/gecmis/{{ hayvan.id }}" class="btn btn-info btn-sm text-white fw-bold">
+                        📊 Kilo Geçmişini Gör
+                    </a>
+                </div>
+                
+                <!-- KG Güncelleme Formu -->
+                <form action="/guncelle/{{ hayvan.id }}" method="POST">
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="0.1" name="yeni_kg" class="form-control" placeholder="Yeni KG" required>
+                        <button class="btn btn-outline-secondary" type="submit">Tartım Güncelle</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">Kayıtlı hayvan bulunamadı.</div>
+    {% endfor %}
+</div>
+{% endblock %}
