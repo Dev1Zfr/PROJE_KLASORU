@@ -29,7 +29,6 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
 
-# YENİ: Kilo Geçmişi Tablosu
 class KiloGecmisi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     hayvan_id = db.Column(db.Integer, db.ForeignKey('hayvan.id'), nullable=False)
@@ -46,7 +45,6 @@ class Hayvan(db.Model):
     alis_tarihi = db.Column(db.DateTime, default=datetime.utcnow)
     durum = db.Column(db.String(20), default='Mevcut')
     
-    # Hayvan silinirse geçmişi de silinsin diye ilişki kuruyoruz
     tartimlar = db.relationship('KiloGecmisi', backref='hayvan', lazy=True, cascade="all, delete-orphan")
 
     @property
@@ -83,6 +81,24 @@ def login():
             hata = "Hatalı kullanıcı adı veya şifre!"
     return render_template('login.html', hata=hata)
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    hata = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        mevcut_kullanici = User.query.filter_by(username=username).first()
+        if mevcut_kullanici:
+            hata = "Bu kullanıcı adı zaten alınmış!"
+        else:
+            yeni_kullanici = User(username=username, password=password)
+            db.session.add(yeni_kullanici)
+            db.session.commit()
+            return redirect(url_for('login'))
+            
+    return render_template('register.html', hata=hata)
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -109,7 +125,6 @@ def ekle():
         db.session.add(yeni_hayvan)
         db.session.commit()
         
-        # YENİ: Hayvan eklendiğinde ilk kilosunu geçmişe kaydet
         ilk_tartim = KiloGecmisi(hayvan_id=yeni_hayvan.id, kilo=yeni_hayvan.alis_kg)
         db.session.add(ilk_tartim)
         db.session.commit()
@@ -124,19 +139,16 @@ def guncelle(id):
     yeni_kilo = float(request.form['yeni_kg'])
     hayvan.guncel_kg = yeni_kilo
     
-    # YENİ: Yeni güncellenen kiloyu geçmiş tablosuna tarih ile ekle
     yeni_tartim = KiloGecmisi(hayvan_id=hayvan.id, kilo=yeni_kilo)
     db.session.add(yeni_tartim)
     
     db.session.commit()
     return redirect(url_for('index'))
 
-# YENİ: Kilo Geçmişini Görüntüleme Sayfası
 @app.route('/gecmis/<int:id>')
 @login_required
 def gecmis(id):
     hayvan = Hayvan.query.get_or_404(id)
-    # Bu hayvana ait tartımları en yeniden en eskiye doğru sırala
     tartimlar = KiloGecmisi.query.filter_by(hayvan_id=id).order_by(KiloGecmisi.tarih.desc()).all()
     return render_template('gecmis.html', hayvan=hayvan, tartimlar=tartimlar)
 
