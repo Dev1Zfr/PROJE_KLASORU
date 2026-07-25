@@ -1,7 +1,7 @@
 {% extends 'layout.html' %}
 
 {% block content %}
-<h2 class="mb-4">Mevcut Hayvanlar & Satış Vitrini</h2>
+<h2 class="mb-4">2. Mevcut Hayvanlar</h2>
 <div class="row">
     {% for hayvan in hayvanlar %}
     <div class="col-md-4 mb-4">
@@ -11,11 +11,18 @@
             </div>
             <div class="card-body">
                 <p><strong>Irk:</strong> {{ hayvan.irk }}</p>
-                <p><strong>Fiyat:</strong> {{ hayvan.alis_fiyati }} ₺</p>
+                <p><strong>Alış Fiyatı:</strong> {{ hayvan.alis_fiyati }} ₺</p>
                 <hr>
                 <p><strong>Alış KG:</strong> {{ hayvan.alis_kg }} kg</p>
                 <p class="text-primary fs-5"><strong>Güncel KG:</strong> {{ hayvan.guncel_kg }} kg</p>
                 <p class="text-danger fw-bold">Günlük Artış: +{{ hayvan.gunluk_artis }} kg/gün</p>
+
+                <!-- Kurban Satış / Hisse Hesabı Butonu -->
+                <div class="d-grid mb-2">
+                    <a href="/satis-yap/{{ hayvan.id }}" class="btn btn-warning btn-sm fw-bold">
+                        💰 Satışa Çıkar / Kurban Hesabı
+                    </a>
+                </div>
 
                 <!-- Kilo Geçmişi Butonu -->
                 <div class="d-grid mb-3">
@@ -35,7 +42,7 @@
         </div>
     </div>
     {% else %}
-    <div class="alert alert-warning">Kayıtlı hayvan bulunamadı.</div>
+    <div class="alert alert-warning">Sistemde henüz kayıtlı veya çiftlikte mevcut hayvan bulunamadı.</div>
     {% endfor %}
 </div>
 {% endblock %}
