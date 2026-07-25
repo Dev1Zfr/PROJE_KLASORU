@@ -1,0 +1,44 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h2 class="mb-4">Satılan Hayvanlar & Kurban Hisseleri</h2>
+<div class="row">
+    {% for hayvan in hayvanlar %}
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white fw-bold d-flex justify-content-between">
+                <span>Küpe No: {{ hayvan.kupe_no }}</span>
+                <span>Satış Fiyatı: {{ hayvan.satis_fiyati }} ₺</span>
+            </div>
+            <div class="card-body">
+                <p><strong>Irk:</strong> {{ hayvan.irk }} | <strong>Canlı KG:</strong> {{ hayvan.guncel_kg }} kg</p>
+                
+                {% if hayvan.is_kurban %}
+                <div class="alert alert-info py-2">
+                    <small>
+                        <strong>Karkas Et (%{{ hayvan.randiman }} Randıman):</strong> ~{{ hayvan.karkas_et_kg }} kg<br>
+                        <strong>Hisse Başı Et (7'ye Bölüm):</strong> ~{{ hayvan.hisse_basi_et }} kg / hisse<br>
+                        <strong>Hisse Başı Fiyat:</strong> {{ hayvan.hisse_fiyati }} ₺
+                    </small>
+                </div>
+
+                <h6>Hissedarlar (7 Kişi)</h6>
+                <ul class="list-group list-group-flush mb-2">
+                    {% for hisse in hayvan.hisseder %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1">
+                        <small>{{ loop.index }}. {{ hisse.hissedar_adi }}</small>
+                        <small class="text-muted">{{ hisse.hissedar_tel }}</small>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item py-1"><small class="text-muted">Henüz hisse ismi girilmedi.</small></li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">Satılan hayvan bulunamadı.</div>
+    {% endfor %}
+</div>
+{% endblock %}
