@@ -3,25 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Çiftlik Otomasyonu</title>
+    <title>Çiftlik & Kurban Otomasyonu</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/">🐄 Çiftlik Takip</a>
-            <div class="navbar-nav">
-                <a class="nav-link" href="/ekle">1. Hayvan Alış</a>
-                <a class="nav-link" href="/">2. Mevcut Hayvanlar</a>
-                <a class="nav-link" href="/satilanlar">3. Hayvan Satış</a>
-            </div>
-            <div class="navbar-nav ms-auto">
-                <a class="btn btn-outline-danger btn-sm" href="/logout">Çıkış Yap</a>
+            <a class="navbar-brand fw-bold" href="/">🐄 Çiftlik Takip</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav me-auto">
+                    <a class="nav-link" href="/ekle">1. Hayvan Alış</a>
+                    <a class="nav-link" href="/">2. Mevcut Hayvanlar</a>
+                    <a class="nav-link" href="/satilanlar">3. Hayvan Satış</a>
+                    <a class="nav-link text-warning" href="/rasyon">4. Rasyon Yönetimi</a>
+                    <a class="nav-link text-info" href="/kaba-yem">5. Kaba Yem Pazarı</a>
+                </div>
+                <div class="navbar-nav">
+                    <a class="btn btn-outline-warning btn-sm me-2" href="/kesim-ekrani" target="_blank">📺 Canlı Kesim Ekranı</a>
+                    <a class="btn btn-outline-danger btn-sm" href="/logout">Çıkış Yap</a>
+                </div>
             </div>
         </div>
     </nav>
-    <div class="container">
+    <div class="container mb-5">
         {% block content %}{% endblock %}
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
