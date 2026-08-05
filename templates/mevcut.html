@@ -1,0 +1,98 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-4 fs-5" id="myTab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#liste">🐄 Hayvan Listesi & Toplu Satış</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link fw-bold text-success" data-bs-toggle="tab" data-bs-target="#sirala">📈 Günlük KG Artış Sıralaması</button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <!-- TAB 1: MEVCUT LİSTE VE TOPLU SATIŞ -->
+  <div class="tab-pane fade show active" id="liste">
+    <form action="/toplu-satis" method="POST">
+        <!-- Toplu Satış Kontrol Paneli -->
+        <div class="card shadow-sm mb-4 bg-light border-warning">
+            <div class="card-body">
+                <h5 class="card-title text-warning fw-bold mb-3">📦 Seçili Hayvanları Toplu Sat</h5>
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <input type="text" name="alici_ad" class="form-control" placeholder="Müşteri Ad Soyad / Firma Adı" required>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="number" step="0.1" name="toplam_satis_fiyati" class="form-control" placeholder="Toplam Fiyat (₺)" required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-warning w-100 fw-bold text-dark">İşaretlileri Sat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            {% for hayvan in hayvanlar %}
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white fw-bold d-flex align-items-center">
+                        <input type="checkbox" name="secilen_hayvanlar" value="{{ hayvan.id }}" class="form-check-input me-3" style="transform: scale(1.5);">
+                        <span class="fs-5">Küpe/Grup No: {{ hayvan.kupe_no }}</span>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Irk:</strong> {{ hayvan.irk }} | <strong>Fiyat:</strong> {{ hayvan.alis_fiyati }} ₺</p>
+                        <hr>
+                        <p><strong>Alış KG:</strong> {{ hayvan.alis_kg }} kg</p>
+                        <p class="text-primary fs-5"><strong>Güncel KG:</strong> {{ hayvan.guncel_kg }} kg</p>
+                        <p class="text-danger fw-bold">Ortalama Artış: +{{ hayvan.gunluk_artis }} kg / Gün</p>
+
+                        <div class="d-grid mb-2 mt-3">
+                            <a href="/satis-yap/{{ hayvan.id }}" class="btn btn-outline-warning btn-sm fw-bold">💰 Bireysel / Kurbanlık Sat</a>
+                        </div>
+                        
+                        <!-- Tartım Güncelleme -->
+                        <form action="/guncelle/{{ hayvan.id }}" method="POST" class="mt-2">
+                            <div class="input-group input-group-sm">
+                                <input type="number" step="0.1" name="yeni_kg" class="form-control" placeholder="Tartılan Yeni KG" required>
+                                <button class="btn btn-secondary" type="submit">Tartımı Kaydet</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </form>
+  </div>
+
+  <!-- TAB 2: KG ARTIŞ SIRALAMASI -->
+  <div class="tab-pane fade" id="sirala">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-dark text-white fw-bold fs-5">🏆 En Çok Kilo Alanlardan Düşüğe Doğru Sıralama</div>
+        <div class="card-body p-0">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Sıra</th>
+                        <th>Küpe/Grup No</th>
+                        <th>Toplam Kazanılan Kilo</th>
+                        <th>Günlük Ortalama Hız</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in hayvanlar_sirali %}
+                    <tr>
+                        <td><strong>#{{ loop.index }}</strong></td>
+                        <td class="fw-bold">{{ h.kupe_no }}</td>
+                        <td class="text-success fw-bold">+{{ (h.guncel_kg - h.alis_kg)|round(1) }} kg</td>
+                        <td><span class="badge bg-danger fs-6">+{{ h.gunluk_artis }} kg/gün</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
