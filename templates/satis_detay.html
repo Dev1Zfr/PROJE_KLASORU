@@ -4,48 +4,86 @@
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow-sm mb-4">
-            <div class="card-header bg-warning text-dark fw-bold">
-                Küpe No: {{ hayvan.kupe_no }} — Satış ve Kurban Hesaplama
+            <div class="card-header bg-warning text-dark fw-bold fs-5">
+                Küpe/Grup No: {{ hayvan.kupe_no }} — Satış Ekranı
             </div>
             <div class="card-body">
-                <p><strong>Irk:</strong> {{ hayvan.irk }} | <strong>Güncel KG:</strong> {{ hayvan.guncel_kg }} kg | <strong>Günlük Artış:</strong> +{{ hayvan.gunluk_artis }} kg/gün</p>
+                <p class="fs-6"><strong>Irk:</strong> {{ hayvan.irk }} | <strong>Güncel KG:</strong> {{ hayvan.guncel_kg }} kg | <strong>Günlük Artış:</strong> +{{ hayvan.gunluk_artis }} kg/gün</p>
 
                 <form method="POST">
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Satılacak Para / Satış Fiyati (₺)</label>
-                            <input type="number" step="0.1" name="satis_fiyati" class="form-control" required value="{{ hayvan.satis_fiyati or '' }}">
+                            <label class="form-label fw-bold">Satış Türü</label>
+                            <select name="satis_turu" id="satisTuru" class="form-select border-primary" onchange="turDegistir()">
+                                <option value="Normal">Normal / Toptan Satış</option>
+                                <option value="Kurban">Kurbanlık Satış (7 Hisse)</option>
+                            </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Ortalama Randıman (%)</label>
-                            <input type="number" step="0.1" name="randiman" class="form-control" value="55" required>
+                            <label class="form-label fw-bold">Toplam Satış Fiyatı (₺)</label>
+                            <input type="number" step="0.1" name="satis_fiyati" class="form-control" placeholder="Örn: 140000" required>
                         </div>
                     </div>
 
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" name="is_kurban" id="kurbanCheck" checked>
-                        <label class="form-check-label fw-bold" for="kurbanCheck">
-                            Kurbanlık Hayvan (7 Hisseye Bölünecek)
-                        </label>
-                    </div>
-
-                    <h5 class="mt-4 mb-3 text-primary">7 Hisse Sahibi Bilgileri</h5>
-                    <div class="row g-2">
-                        {% for i in range(1, 8) %}
-                        <div class="col-md-6 mb-2">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">{{ i }}. Hisse</span>
-                                <input type="text" name="hissedar_ad_{i}" class="form-control" placeholder="İsim Soyisim">
-                                <input type="text" name="hissedar_tel_{i}" class="form-control" placeholder="Telefon">
+                    <!-- NORMAL SATIŞ ALANI -->
+                    <div id="normalAlan" class="p-3 bg-light rounded border mb-3">
+                        <h6 class="fw-bold text-primary mb-3">Müşteri / Alıcı Bilgisi</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <input type="text" name="alici_ad" id="alici_ad" class="form-control" placeholder="Müşteri Ad Soyad / Firma" required>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" name="alici_tel" class="form-control" placeholder="Telefon Numarası">
                             </div>
                         </div>
-                        {% endfor %}
                     </div>
 
-                    <button type="submit" class="btn btn-success w-100 mt-4">Satışı Tamamla ve Kaydet</button>
+                    <!-- KURBANLIK SATIŞ ALANI -->
+                    <div id="kurbanAlan" class="p-3 bg-light rounded border mb-3" style="display: none;">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Tahmini Randıman (%)</label>
+                                <input type="number" step="0.1" name="randiman" class="form-control" value="55">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Bayram Kesim Sırası</label>
+                                <input type="number" name="kesim_sirasi" class="form-control" placeholder="Örn: 12">
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold text-success mb-3">7 Hisse Sahibi Bilgileri</h6>
+                        <div class="row g-2">
+                            {% for i in range(1, 8) %}
+                            <div class="col-md-6 mb-2">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text fw-bold">{{ i }}. Hisse</span>
+                                    <input type="text" name="hissedar_ad_{{ i }}" class="form-control" placeholder="İsim Soyisim">
+                                    <input type="text" name="hissedar_tel_{{ i }}" class="form-control" placeholder="Telefon">
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100 fs-5 fw-bold py-2 mt-3">Satışı Kaydet ve İşle</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function turDegistir() {
+    var tur = document.getElementById('satisTuru').value;
+    if (tur === 'Kurban') {
+        document.getElementById('kurbanAlan').style.display = 'block';
+        document.getElementById('normalAlan').style.display = 'none';
+        document.getElementById('alici_ad').removeAttribute('required');
+    } else {
+        document.getElementById('kurbanAlan').style.display = 'none';
+        document.getElementById('normalAlan').style.display = 'block';
+        document.getElementById('alici_ad').setAttribute('required', 'required');
+    }
+}
+</script>
 {% endblock %}
