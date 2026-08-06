@@ -82,6 +82,14 @@ class Hayvan(db.Model):
         artis = self.guncel_kg - self.alis_kg
         return round(artis / gun_farki, 3)
 
+    @property
+    def karkas_et_kg(self):
+        return round(self.guncel_kg * (self.randiman / 100.0), 1) if self.randiman else 0.0
+
+    @property
+    def hisse_basi_et(self):
+        return round(self.karkas_et_kg / 7.0, 1)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -96,12 +104,30 @@ with app.app_context():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    hata = None
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form['username']).first()
         if user and user.password == request.form['password']:
             login_user(user)
             return redirect(url_for('index'))
-    return render_template('login.html')
+        else:
+            hata = "Hatalı kullanıcı adı veya şifre!"
+    return render_template('login.html', hata=hata)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    hata = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if User.query.filter_by(username=username).first():
+            hata = "Bu kullanıcı adı zaten kullanılıyor!"
+        else:
+            yeni_kullanici = User(username=username, password=password)
+            db.session.add(yeni_kullanici)
+            db.session.commit()
+            return redirect(url_for('login'))
+    return render_template('register.html', hata=hata)
 
 @app.route('/logout')
 @login_required
@@ -109,22 +135,21 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# 1. YENİ ANA EKRAN (3 BÜYÜK BUTON)
+# 1. ANA EKRAN (3 BÜYÜK BUTON)
 @app.route('/')
 @login_required
 def index():
     return render_template('index.html')
 
-# 2. MEVCUT HAYVANLAR LİSTESİ VE SIRALAMA EKRANI
+# 2. MEVCUT HAYVANLAR VE PERFORMANS SIRALAMASI
 @app.route('/mevcut')
 @login_required
 def mevcut():
     hayvanlar = Hayvan.query.filter_by(durum='Mevcut').all()
-    # Kilo artışına göre en çoktan aza doğru sıralama
     hayvanlar_sirali = sorted(hayvanlar, key=lambda x: x.gunluk_artis, reverse=True)
     return render_template('mevcut.html', hayvanlar=hayvanlar, hayvanlar_sirali=hayvanlar_sirali)
 
-# 3. YENİ TOPLU/TEKLİ HAYVAN ALIŞI
+# 3. TEKLİ / TOPLU (GRUP) HAYVAN ALIŞI
 @app.route('/ekle', methods=['GET', 'POST'])
 @login_required
 def ekle():
@@ -143,7 +168,7 @@ def ekle():
                     irk=irk, alis_kg=alis_kg, guncel_kg=alis_kg, alis_fiyati=alis_fiyati
                 )
                 db.session.add(yeni_hayvan)
-                db.session.flush() # ID'yi alabilmek için
+                db.session.flush()
                 db.session.add(KiloGecmisi(hayvan_id=yeni_hayvan.id, kilo=alis_kg))
         else:
             kupe_no = request.form['kupe_no']
@@ -165,6 +190,7 @@ def toplu_satis():
     secilen_idleri = request.form.getlist('secilen_hayvanlar')
     toplam_fiyat = float(request.form.get('toplam_satis_fiyati', 0))
     alici_ad = request.form.get('alici_ad')
+    alici_tel = request.form.get('alici_tel')
     
     if secilen_idleri:
         adet = len(secilen_idleri)
@@ -175,17 +201,88 @@ def toplu_satis():
                 hayvan.durum = 'Satildi'
                 hayvan.satis_turu = 'Normal'
                 hayvan.satis_fiyati = hayvan_basi_fiyat
-                db.session.add(Hisse(hayvan_id=hayvan.id, hissedar_adi=alici_ad, toplam_borc=hayvan_basi_fiyat))
+                db.session.add(Hisse(hayvan_id=hayvan.id, hissedar_adi=alici_ad, hissedar_tel=alici_tel, toplam_borc=hayvan_basi_fiyat))
         db.session.commit()
     return redirect(url_for('satilanlar'))
 
+# SATILAN HAYVANLAR & ARAMA & TAHSİLAT
 @app.route('/satilanlar')
 @login_required
 def satilanlar():
+    q = request.args.get('q', '').strip()
+    hisse_sorgu = Hisse.query
+    if q:
+        hisse_sorgu = hisse_sorgu.filter((Hisse.hissedar_adi.ilike(f'%{q}%')) | (Hisse.hissedar_tel.ilike(f'%{q}%')))
+    
+    hisseler = hisse_sorgu.all()
     kurbanlar = Hayvan.query.filter_by(durum='Satildi', satis_turu='Kurban').order_by(Hayvan.kesim_sirasi.asc()).all()
     normal_satilanlar = Hayvan.query.filter_by(durum='Satildi', satis_turu='Normal').all()
-    return render_template('satilanlar.html', kurbanlar=kurbanlar, normal_satilanlar=normal_satilanlar)
+    return render_template('satilanlar.html', kurbanlar=kurbanlar, normal_satilanlar=normal_satilanlar, arama_hisseleri=hisseler, arama_kelimesi=q)
 
+# TEKLİ VEYA KURBANLIK SATIŞ
+@app.route('/satis-yap/<int:id>', methods=['GET', 'POST'])
+@login_required
+def satis_yap(id):
+    hayvan = Hayvan.query.get_or_404(id)
+    if request.method == 'POST':
+        satis_turu = request.form.get('satis_turu')
+        toplam_fiyat = float(request.form.get('satis_fiyati', 0))
+        hayvan.satis_turu = satis_turu
+        hayvan.satis_fiyati = toplam_fiyat
+        hayvan.randiman = float(request.form.get('randiman', 55))
+        hayvan.durum = 'Satildi'
+        
+        if request.form.get('kesim_sirasi'):
+            hayvan.kesim_sirasi = int(request.form.get('kesim_sirasi'))
+        
+        Hisse.query.filter_by(hayvan_id=hayvan.id).delete()
+        
+        if satis_turu == 'Kurban':
+            hisse_fiyati = round(toplam_fiyat / 7.0, 2)
+            for i in range(1, 8):
+                ad = request.form.get(f'hissedar_ad_{i}')
+                tel = request.form.get(f'hissedar_tel_{i}')
+                if ad:
+                    db.session.add(Hisse(hayvan_id=hayvan.id, hisse_sira=i, hissedar_adi=ad, hissedar_tel=tel, toplam_borc=hisse_fiyati))
+        else:
+            ad = request.form.get('alici_ad')
+            tel = request.form.get('alici_tel')
+            db.session.add(Hisse(hayvan_id=hayvan.id, hissedar_adi=ad, hissedar_tel=tel, toplam_borc=toplam_fiyat))
+            
+        db.session.commit()
+        return redirect(url_for('satilanlar'))
+    return render_template('satis_detay.html', hayvan=hayvan)
+
+# TAHSİLAT / PARÇA ÖDEME & NOT EKLEME
+@app.route('/odeme-ekle/<int:hisse_id>', methods=['POST'])
+@login_required
+def odeme_ekle(hisse_id):
+    hisse = Hisse.query.get_or_404(hisse_id)
+    ek_odeme = float(request.form.get('ek_odeme', 0))
+    not_aciklama = request.form.get('aciklama_not', '')
+    
+    yeni_odeme = OdemeGecmisi(hisse_id=hisse.id, tutar=ek_odeme, aciklama_not=not_aciklama)
+    db.session.add(yeni_odeme)
+    db.session.commit()
+    return redirect(request.referrer or url_for('satilanlar'))
+
+# CANLI KURBAN KESİM EKRANI
+@app.route('/kesim-ekrani')
+def kesim_ekrani():
+    kurbanlar = Hayvan.query.filter_by(durum='Satildi', satis_turu='Kurban').order_by(Hayvan.kesim_sirasi.asc()).all()
+    return render_template('kesim_ekrani.html', kurbanlar=kurbanlar)
+
+# KESİM SIRASI VE DURUMU GÜNCELLEME
+@app.route('/sira-guncelle/<int:id>', methods=['POST'])
+@login_required
+def sira_guncelle(id):
+    hayvan = Hayvan.query.get_or_404(id)
+    hayvan.kesim_sirasi = int(request.form.get('kesim_sirasi'))
+    hayvan.kesim_durumu = request.form.get('kesim_durumu')
+    db.session.commit()
+    return redirect(url_for('satilanlar'))
+
+# TARTIM GÜNCELLEME
 @app.route('/guncelle/<int:id>', methods=['POST'])
 @login_required
 def guncelle(id):
@@ -196,29 +293,25 @@ def guncelle(id):
     db.session.commit()
     return redirect(url_for('mevcut'))
 
-@app.route('/satis-yap/<int:id>', methods=['GET', 'POST'])
+# KİLO GEÇMİŞİ GÖRÜNTÜLEME
+@app.route('/gecmis/<int:id>')
 @login_required
-def satis_yap(id):
+def gecmis(id):
     hayvan = Hayvan.query.get_or_404(id)
-    if request.method == 'POST':
-        satis_turu = request.form.get('satis_turu')
-        toplam_fiyat = float(request.form.get('satis_fiyati', 0))
-        hayvan.satis_turu = satis_turu
-        hayvan.satis_fiyati = toplam_fiyat
-        hayvan.durum = 'Satildi'
-        
-        if satis_turu == 'Kurban':
-            hisse_fiyati = round(toplam_fiyat / 7.0, 2)
-            for i in range(1, 8):
-                ad = request.form.get(f'hissedar_ad_{i}')
-                if ad:
-                    db.session.add(Hisse(hayvan_id=hayvan.id, hisse_sira=i, hissedar_adi=ad, toplam_borc=hisse_fiyati))
-        else:
-            db.session.add(Hisse(hayvan_id=hayvan.id, hissedar_adi=request.form.get('alici_ad'), toplam_borc=toplam_fiyat))
-            
-        db.session.commit()
-        return redirect(url_for('satilanlar'))
-    return render_template('satis_detay.html', hayvan=hayvan)
+    tartimlar = KiloGecmisi.query.filter_by(hayvan_id=id).order_by(KiloGecmisi.tarih.desc()).all()
+    return render_template('gecmis.html', hayvan=hayvan, tartimlar=tartimlar)
+
+# 4. RASYON YÖNETİMİ
+@app.route('/rasyon')
+@login_required
+def rasyon():
+    return render_template('rasyon.html')
+
+# 5. KABA YEM PAZARI
+@app.route('/kaba-yem')
+@login_required
+def kaba_yem():
+    return render_template('kaba_yem.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
