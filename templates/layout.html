@@ -16,12 +16,15 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <div class="navbar-nav me-auto">
                     <a class="nav-link" href="/ekle">1. Hayvan Alış</a>
-                    <a class="nav-link" href="/">2. Mevcut Hayvanlar</a>
+                    <a class="nav-link" href="/mevcut">2. Mevcut Hayvanlar</a>
                     <a class="nav-link" href="/satilanlar">3. Hayvan Satış</a>
                     <a class="nav-link text-warning" href="/rasyon">4. Rasyon Yönetimi</a>
                     <a class="nav-link text-info" href="/kaba-yem">5. Kaba Yem Pazarı</a>
                 </div>
-                <div class="navbar-nav">
+                <div class="navbar-nav align-items-center">
+                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    <a class="btn btn-outline-light btn-sm me-2" href="/admin">⚙️ Admin Paneli</a>
+                    {% endif %}
                     <a class="btn btn-outline-warning btn-sm me-2" href="/kesim-ekrani" target="_blank">📺 Canlı Kesim Ekranı</a>
                     <a class="btn btn-outline-danger btn-sm" href="/logout">Çıkış Yap</a>
                 </div>
