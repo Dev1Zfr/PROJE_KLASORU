@@ -1,4 +1,5 @@
 import os
+from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -25,6 +26,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False) # Admin Yetkisi
 
 class KiloGecmisi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -90,14 +92,28 @@ class Hayvan(db.Model):
     def hisse_basi_et(self):
         return round(self.karkas_et_kg / 7.0, 1)
 
+# ADMIN KONTROL DEKORATÖRÜ
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            return "Bu sayfaya yalnızca yönetici erişebilir!", 403
+        return f(*args, **kwargs)
+    return decorated_function
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 with app.app_context():
     db.create_all()
-    if not User.query.filter_by(username='admin').first():
-        db.session.add(User(username='admin', password='123'))
+    # Varsayılan Admin Kullanıcısını Yetkili Olarak Oluştur
+    admin_user = User.query.filter_by(username='admin').first()
+    if not admin_user:
+        db.session.add(User(username='admin', password='123', is_admin=True))
+        db.session.commit()
+    elif not admin_user.is_admin:
+        admin_user.is_admin = True
         db.session.commit()
 
 # --- ROTALAR ---
@@ -123,8 +139,7 @@ def register():
         if User.query.filter_by(username=username).first():
             hata = "Bu kullanıcı adı zaten kullanılıyor!"
         else:
-            yeni_kullanici = User(username=username, password=password)
-            db.session.add(yeni_kullanici)
+            db.session.add(User(username=username, password=password, is_admin=False))
             db.session.commit()
             return redirect(url_for('login'))
     return render_template('register.html', hata=hata)
@@ -135,13 +150,62 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# 1. ANA EKRAN (3 BÜYÜK BUTON)
+# ADMIN PANELİ
+@app.route('/admin')
+@login_required
+@admin_required
+def admin():
+    kullanicilar = User.query.all()
+    toplam_hayvan = Hayvan.query.count()
+    mevcut_hayvan = Hayvan.query.filter_by(durum='Mevcut').count()
+    satilan_hayvan = Hayvan.query.filter_by(durum='Satildi').count()
+    
+    # Finansal Özetler
+    toplam_satis_tutari = db.session.query(db.func.sum(Hayvan.satis_fiyati)).filter(Hayvan.durum == 'Satildi').scalar() or 0.0
+    toplam_tahsilat = db.session.query(db.func.sum(OdemeGecmisi.tutar)).scalar() or 0.0
+    toplam_kalan_alacak = max(0.0, toplam_satis_tutari - toplam_tahsilat)
+
+    return render_template(
+        'admin.html',
+        kullanicilar=kullanicilar,
+        toplam_hayvan=toplam_hayvan,
+        mevcut_hayvan=mevcut_hayvan,
+        satilan_hayvan=satilan_hayvan,
+        toplam_satis_tutari=toplam_satis_tutari,
+        toplam_tahsilat=toplam_tahsilat,
+        toplam_kalan_alacak=toplam_kalan_alacak
+    )
+
+# ADMIN - KULLANICI EKLE
+@app.route('/admin/kullanici-ekle', methods=['POST'])
+@login_required
+@admin_required
+def admin_kullanici_ekle():
+    username = request.form.get('username')
+    password = request.form.get('password')
+    is_admin = True if request.form.get('is_admin') else False
+    
+    if not User.query.filter_by(username=username).first():
+        db.session.add(User(username=username, password=password, is_admin=is_admin))
+        db.session.commit()
+    return redirect(url_for('admin'))
+
+# ADMIN - KULLANICI SİL
+@app.route('/admin/kullanici-sil/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def kullanici_sil(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.username != 'admin': # Ana admin hesabı silinemez
+        db.session.delete(user)
+        db.session.commit()
+    return redirect(url_for('admin'))
+
 @app.route('/')
 @login_required
 def index():
     return render_template('index.html')
 
-# 2. MEVCUT HAYVANLAR VE PERFORMANS SIRALAMASI
 @app.route('/mevcut')
 @login_required
 def mevcut():
@@ -149,7 +213,6 @@ def mevcut():
     hayvanlar_sirali = sorted(hayvanlar, key=lambda x: x.gunluk_artis, reverse=True)
     return render_template('mevcut.html', hayvanlar=hayvanlar, hayvanlar_sirali=hayvanlar_sirali)
 
-# 3. TEKLİ / TOPLU (GRUP) HAYVAN ALIŞI
 @app.route('/ekle', methods=['GET', 'POST'])
 @login_required
 def ekle():
@@ -183,7 +246,6 @@ def ekle():
         return redirect(url_for('mevcut'))
     return render_template('ekle.html')
 
-# TOPLU SATIŞ ROTASI
 @app.route('/toplu-satis', methods=['POST'])
 @login_required
 def toplu_satis():
@@ -205,7 +267,6 @@ def toplu_satis():
         db.session.commit()
     return redirect(url_for('satilanlar'))
 
-# SATILAN HAYVANLAR & ARAMA & TAHSİLAT
 @app.route('/satilanlar')
 @login_required
 def satilanlar():
@@ -219,7 +280,6 @@ def satilanlar():
     normal_satilanlar = Hayvan.query.filter_by(durum='Satildi', satis_turu='Normal').all()
     return render_template('satilanlar.html', kurbanlar=kurbanlar, normal_satilanlar=normal_satilanlar, arama_hisseleri=hisseler, arama_kelimesi=q)
 
-# TEKLİ VEYA KURBANLIK SATIŞ
 @app.route('/satis-yap/<int:id>', methods=['GET', 'POST'])
 @login_required
 def satis_yap(id):
@@ -253,7 +313,6 @@ def satis_yap(id):
         return redirect(url_for('satilanlar'))
     return render_template('satis_detay.html', hayvan=hayvan)
 
-# TAHSİLAT / PARÇA ÖDEME & NOT EKLEME
 @app.route('/odeme-ekle/<int:hisse_id>', methods=['POST'])
 @login_required
 def odeme_ekle(hisse_id):
@@ -266,13 +325,11 @@ def odeme_ekle(hisse_id):
     db.session.commit()
     return redirect(request.referrer or url_for('satilanlar'))
 
-# CANLI KURBAN KESİM EKRANI
 @app.route('/kesim-ekrani')
 def kesim_ekrani():
     kurbanlar = Hayvan.query.filter_by(durum='Satildi', satis_turu='Kurban').order_by(Hayvan.kesim_sirasi.asc()).all()
     return render_template('kesim_ekrani.html', kurbanlar=kurbanlar)
 
-# KESİM SIRASI VE DURUMU GÜNCELLEME
 @app.route('/sira-guncelle/<int:id>', methods=['POST'])
 @login_required
 def sira_guncelle(id):
@@ -282,7 +339,6 @@ def sira_guncelle(id):
     db.session.commit()
     return redirect(url_for('satilanlar'))
 
-# TARTIM GÜNCELLEME
 @app.route('/guncelle/<int:id>', methods=['POST'])
 @login_required
 def guncelle(id):
@@ -293,7 +349,6 @@ def guncelle(id):
     db.session.commit()
     return redirect(url_for('mevcut'))
 
-# KİLO GEÇMİŞİ GÖRÜNTÜLEME
 @app.route('/gecmis/<int:id>')
 @login_required
 def gecmis(id):
@@ -301,13 +356,11 @@ def gecmis(id):
     tartimlar = KiloGecmisi.query.filter_by(hayvan_id=id).order_by(KiloGecmisi.tarih.desc()).all()
     return render_template('gecmis.html', hayvan=hayvan, tartimlar=tartimlar)
 
-# 4. RASYON YÖNETİMİ
 @app.route('/rasyon')
 @login_required
 def rasyon():
     return render_template('rasyon.html')
 
-# 5. KABA YEM PAZARI
 @app.route('/kaba-yem')
 @login_required
 def kaba_yem():
