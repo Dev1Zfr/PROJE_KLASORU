@@ -26,7 +26,15 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False) # Admin Yetkisi
+    is_admin = db.Column(db.Boolean, default=False)
+
+class Yem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    yem_adi = db.Column(db.String(100), nullable=False)
+    stok_kg = db.Column(db.Float, default=0.0)
+    enerji_me = db.Column(db.Float, default=0.0) # Mcal/kg Enerji
+    protein_hp = db.Column(db.Float, default=0.0) # % Ham Protein
+    kuru_madde = db.Column(db.Float, default=0.0) # % Kuru Madde (Kaba Yem Oranı)
 
 class KiloGecmisi(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -84,15 +92,6 @@ class Hayvan(db.Model):
         artis = self.guncel_kg - self.alis_kg
         return round(artis / gun_farki, 3)
 
-    @property
-    def karkas_et_kg(self):
-        return round(self.guncel_kg * (self.randiman / 100.0), 1) if self.randiman else 0.0
-
-    @property
-    def hisse_basi_et(self):
-        return round(self.karkas_et_kg / 7.0, 1)
-
-# ADMIN KONTROL DEKORATÖRÜ
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -107,7 +106,6 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
-    # Varsayılan Admin Kullanıcısını Yetkili Olarak Oluştur
     admin_user = User.query.filter_by(username='admin').first()
     if not admin_user:
         db.session.add(User(username='admin', password='123', is_admin=True))
@@ -150,7 +148,6 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# ADMIN PANELİ
 @app.route('/admin')
 @login_required
 @admin_required
@@ -160,7 +157,6 @@ def admin():
     mevcut_hayvan = Hayvan.query.filter_by(durum='Mevcut').count()
     satilan_hayvan = Hayvan.query.filter_by(durum='Satildi').count()
     
-    # Finansal Özetler
     toplam_satis_tutari = db.session.query(db.func.sum(Hayvan.satis_fiyati)).filter(Hayvan.durum == 'Satildi').scalar() or 0.0
     toplam_tahsilat = db.session.query(db.func.sum(OdemeGecmisi.tutar)).scalar() or 0.0
     toplam_kalan_alacak = max(0.0, toplam_satis_tutari - toplam_tahsilat)
@@ -176,7 +172,6 @@ def admin():
         toplam_kalan_alacak=toplam_kalan_alacak
     )
 
-# ADMIN - KULLANICI EKLE
 @app.route('/admin/kullanici-ekle', methods=['POST'])
 @login_required
 @admin_required
@@ -184,19 +179,17 @@ def admin_kullanici_ekle():
     username = request.form.get('username')
     password = request.form.get('password')
     is_admin = True if request.form.get('is_admin') else False
-    
     if not User.query.filter_by(username=username).first():
         db.session.add(User(username=username, password=password, is_admin=is_admin))
         db.session.commit()
     return redirect(url_for('admin'))
 
-# ADMIN - KULLANICI SİL
 @app.route('/admin/kullanici-sil/<int:user_id>', methods=['POST'])
 @login_required
 @admin_required
 def kullanici_sil(user_id):
     user = User.query.get_or_404(user_id)
-    if user.username != 'admin': # Ana admin hesabı silinemez
+    if user.username != 'admin':
         db.session.delete(user)
         db.session.commit()
     return redirect(url_for('admin'))
@@ -252,7 +245,7 @@ def toplu_satis():
     secilen_idleri = request.form.getlist('secilen_hayvanlar')
     toplam_fiyat = float(request.form.get('toplam_satis_fiyati', 0))
     alici_ad = request.form.get('alici_ad')
-    alici_tel = request.form.get('alici_tel')
+    alici_tel = request.form.get('alici_tel', '')
     
     if secilen_idleri:
         adet = len(secilen_idleri)
@@ -280,16 +273,17 @@ def satilanlar():
     normal_satilanlar = Hayvan.query.filter_by(durum='Satildi', satis_turu='Normal').all()
     return render_template('satilanlar.html', kurbanlar=kurbanlar, normal_satilanlar=normal_satilanlar, arama_hisseleri=hisseler, arama_kelimesi=q)
 
+# DÜZELTİLEN SATIŞ ROTA VE FORM İŞLEMLERİ
 @app.route('/satis-yap/<int:id>', methods=['GET', 'POST'])
 @login_required
 def satis_yap(id):
     hayvan = Hayvan.query.get_or_404(id)
     if request.method == 'POST':
-        satis_turu = request.form.get('satis_turu')
-        toplam_fiyat = float(request.form.get('satis_fiyati', 0))
+        satis_turu = request.form.get('satis_turu', 'Normal')
+        toplam_fiyat = float(request.form.get('satis_fiyati') or 0)
         hayvan.satis_turu = satis_turu
         hayvan.satis_fiyati = toplam_fiyat
-        hayvan.randiman = float(request.form.get('randiman', 55))
+        hayvan.randiman = float(request.form.get('randiman') or 55)
         hayvan.durum = 'Satildi'
         
         if request.form.get('kesim_sirasi'):
@@ -305,8 +299,8 @@ def satis_yap(id):
                 if ad:
                     db.session.add(Hisse(hayvan_id=hayvan.id, hisse_sira=i, hissedar_adi=ad, hissedar_tel=tel, toplam_borc=hisse_fiyati))
         else:
-            ad = request.form.get('alici_ad')
-            tel = request.form.get('alici_tel')
+            ad = request.form.get('alici_ad') or 'İsimsiz Müşteri'
+            tel = request.form.get('alici_tel') or ''
             db.session.add(Hisse(hayvan_id=hayvan.id, hissedar_adi=ad, hissedar_tel=tel, toplam_borc=toplam_fiyat))
             
         db.session.commit()
@@ -317,13 +311,42 @@ def satis_yap(id):
 @login_required
 def odeme_ekle(hisse_id):
     hisse = Hisse.query.get_or_404(hisse_id)
-    ek_odeme = float(request.form.get('ek_odeme', 0))
+    ek_odeme = float(request.form.get('ek_odeme') or 0)
     not_aciklama = request.form.get('aciklama_not', '')
     
     yeni_odeme = OdemeGecmisi(hisse_id=hisse.id, tutar=ek_odeme, aciklama_not=not_aciklama)
     db.session.add(yeni_odeme)
     db.session.commit()
     return redirect(request.referrer or url_for('satilanlar'))
+
+# RASYON YÖNETİMİ & YEM STOK ROTALARI
+@app.route('/rasyon')
+@login_required
+def rasyon():
+    yemler = Yem.query.all()
+    return render_template('rasyon.html', yemler=yemler)
+
+@app.route('/rasyon/yem-ekle', methods=['POST'])
+@login_required
+def yem_ekle():
+    yem_adi = request.form.get('yem_adi')
+    stok_kg = float(request.form.get('stok_kg') or 0)
+    enerji_me = float(request.form.get('enerji_me') or 0)
+    protein_hp = float(request.form.get('protein_hp') or 0)
+    kuru_madde = float(request.form.get('kuru_madde') or 0)
+    
+    yeni_yem = Yem(yem_adi=yem_adi, stok_kg=stok_kg, enerji_me=enerji_me, protein_hp=protein_hp, kuru_madde=kuru_madde)
+    db.session.add(yeni_yem)
+    db.session.commit()
+    return redirect(url_for('rasyon'))
+
+@app.route('/rasyon/yem-sil/<int:id>', methods=['POST'])
+@login_required
+def yem_sil(id):
+    yem = Yem.query.get_or_404(id)
+    db.session.delete(yem)
+    db.session.commit()
+    return redirect(url_for('rasyon'))
 
 @app.route('/kesim-ekrani')
 def kesim_ekrani():
@@ -355,11 +378,6 @@ def gecmis(id):
     hayvan = Hayvan.query.get_or_404(id)
     tartimlar = KiloGecmisi.query.filter_by(hayvan_id=id).order_by(KiloGecmisi.tarih.desc()).all()
     return render_template('gecmis.html', hayvan=hayvan, tartimlar=tartimlar)
-
-@app.route('/rasyon')
-@login_required
-def rasyon():
-    return render_template('rasyon.html')
 
 @app.route('/kaba-yem')
 @login_required
