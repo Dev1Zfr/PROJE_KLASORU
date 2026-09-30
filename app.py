@@ -122,7 +122,11 @@ def login():
     if request.method == 'POST':
         user = User.query.filter_by(username=request.form['username']).first()
         if user and user.password == request.form['password']:
-            login_user(user)
+            # Formdan 'hatirla' kutucuğunun işaretli olup olmadığını kontrol et
+            beni_hatirla = True if request.form.get('hatirla') else False
+            
+            # remember=True parametresi ile kullanıcıyı uzun süreli giriş yaptır
+            login_user(user, remember=beni_hatirla)
             return redirect(url_for('index'))
         else:
             hata = "Hatalı kullanıcı adı veya şifre!"
