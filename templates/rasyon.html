@@ -1,166 +1,120 @@
 {% extends 'layout.html' %}
-
 {% block content %}
-<h2 class="mb-4 text-dark fw-bold">🌾 4. Rasyon Yönetimi & Yem Deposu</h2>
+<h2 class="mb-4 text-dark fw-bold">🌾 Rasyon Yönetimi & Yem Tüketimi</h2>
 
-<div class="row">
-    <!-- YEM EKLEME FORMU -->
-    <div class="col-md-4 mb-4">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-primary text-white fw-bold">➕ Depoya Yeni Yem Ekle</div>
+<div class="row mb-5">
+    <!-- SADECE AD VE STOK GİRİŞİ -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white fw-bold">➕ Yeni Yem Ekle</div>
             <div class="card-body">
                 <form action="/rasyon/yem-ekle" method="POST">
-                    <div class="mb-2">
-                        <label class="form-label">Yem Adı</label>
-                        <input type="text" name="yem_adi" class="form-control" placeholder="Örn: Mısır Silajı, Yonca, Arpa" required>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label">Mevcut Stok (kg)</label>
-                        <input type="number" step="0.1" name="stok_kg" class="form-control" placeholder="Örn: 10" required>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label small">Enerji (ME)</label>
-                            <input type="number" step="0.01" name="enerji_me" class="form-control" placeholder="Mcal/kg">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small">Protein (%)</label>
-                            <input type="number" step="0.1" name="protein_hp" class="form-control" placeholder="% Ham P.">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small">Kuru Madde (%)</label>
-                            <input type="number" step="0.1" name="kuru_madde" class="form-control" placeholder="% KM">
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 fw-bold">Depoya Kaydet</button>
+                    <input type="text" name="yem_adi" class="form-control mb-2" placeholder="Yem Adı (Örn: Yonca)" required>
+                    <input type="number" step="0.1" name="stok_kg" class="form-control mb-2" placeholder="Mevcut Stok (KG)" required>
+                    <button type="submit" class="btn btn-primary w-100">Kaydet</button>
                 </form>
             </div>
         </div>
     </div>
-
-    <!-- YEM DEPOSU LİSTESİ -->
-    <div class="col-md-8 mb-4">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-dark text-white fw-bold">📦 Depodaki Yemler ve Teknik Değerleri</div>
-            <div class="card-body p-0">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Yem Adı</th>
-                            <th>Mevcut Stok</th>
-                            <th>Enerji (ME)</th>
-                            <th>Ham Protein</th>
-                            <th>Kuru Madde</th>
-                            <th>İşlem</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for y in yemler %}
-                        <tr>
-                            <td class="fw-bold">{{ y.yem_adi }}</td>
-                            <td><span class="badge bg-success fs-6">{{ y.stok_kg }} kg</span></td>
-                            <td>{{ y.enerji_me }} Mcal/kg</td>
-                            <td>%{{ y.protein_hp }}</td>
-                            <td>%{{ y.kuru_madde }}</td>
-                            <td>
-                                <form action="/rasyon/yem-sil/{{ y.id }}" method="POST" onsubmit="return confirm('Bu yemi silmek istediğinize emin misiniz?');">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Sil</button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="6" class="text-center text-muted p-3">Depoda henüz kayıtlı yem bulunmuyor.</td></tr>
+    <!-- HARCANAN YEMİ DÜŞME VE GEÇMİŞ -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white fw-bold">📉 Tüketim (Harcanan Yem) Kaydet</div>
+            <div class="card-body d-flex gap-3">
+                <form action="/rasyon/yem-harca" method="POST" class="w-50 border-end pe-3">
+                    <select name="yem_id" class="form-select mb-2" required>
+                        <option value="">Depodan Yem Seç...</option>
+                        {% for y in yemler %}<option value="{{ y.id }}">{{ y.yem_adi }} (Stok: {{ y.stok_kg }} kg)</option>{% endfor %}
+                    </select>
+                    <input type="number" step="0.1" name="harcanan_kg" class="form-control mb-2" placeholder="Harcanan KG" required>
+                    <input type="text" name="aciklama" class="form-control mb-2" placeholder="Nereye verildi? (Örn: Grup 1)">
+                    <button type="submit" class="btn btn-danger w-100">Stoktan Düş</button>
+                </form>
+                <div class="w-50 ps-2" style="max-height: 150px; overflow-y: auto;">
+                    <h6 class="fw-bold">Son Tüketim Geçmişi</h6>
+                    <ul class="list-unstyled small">
+                        {% for t in tuketimler %}
+                        <li>🔻 {{ t.harcanan_kg }}kg {{ t.yem.yem_adi }} ({{ t.tarih.strftime('%d.%m') }}) - <em>{{ t.aciklama }}</em></li>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- CANLI RASYON KARMA ARACI -->
-<div class="card shadow-sm border-0 mb-5">
-    <div class="card-header bg-success text-white fw-bold fs-5">⚖️ Günlük Rasyon Karma & Analiz Ekranı</div>
-    <div class="card-body p-4">
-        <p class="text-muted">Hayvan başına günlük verilecek yem miktarlarını (kg) girerek rasyonun toplam besin değerini hesaplayın:</p>
-        
-        <div class="row g-3">
-            {% for y in yemler %}
-            <div class="col-md-4">
-                <div class="p-3 border rounded bg-light">
-                    <label class="form-label fw-bold">{{ y.yem_adi }} (kg/gün)</label>
-                    <input type="number" step="0.1" class="form-control rasyon-input" 
-                           data-me="{{ y.enerji_me }}" data-hp="{{ y.protein_hp }}" data-km="{{ y.kuru_madde }}" 
-                           placeholder="0.0" oninput="rasyonHesapla()">
-                    <small class="text-muted">Stok: {{ y.stok_kg }} kg</small>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+<!-- 3'LÜ KİLO TABLOLARI VE RASYON HESAPLAMA -->
+<h4 class="fw-bold text-success">📊 Hayvan Ağırlığına Göre Rasyon Hesaplama</h4>
+<div class="alert alert-danger d-none" id="rasyonUyari"><strong>DİKKAT:</strong> Rasyon fazlası tespit edildi! Hayvan sağlığı için zararlı olabilir.</div>
 
-        <hr class="my-4">
+<ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tbl-200">200-400 KG Hayvanlar</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tbl-400">400-600 KG Hayvanlar</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tbl-600">600-1000 KG Hayvanlar</button></li>
+</ul>
 
-        <!-- CANLI HESAPLAMA SONUÇLARI -->
-        <h5 class="fw-bold text-dark mb-3">📊 Toplanan Günlük Rasyon Değerleri (Hayvan Başı)</h5>
-        <div class="row text-center">
-            <div class="col-md-3">
-                <div class="p-3 bg-primary text-white rounded shadow-sm">
-                    <h6>Toplam Yem Miktarı</h6>
-                    <h3 id="toplamKg" class="fw-bold">0.0 kg</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3 bg-warning text-dark rounded shadow-sm">
-                    <h6>Toplam Enerji (ME)</h6>
-                    <h3 id="toplamME" class="fw-bold">0.0 Mcal</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3 bg-info text-white rounded shadow-sm">
-                    <h6>Ortalama Ham Protein</h6>
-                    <h3 id="toplamHP" class="fw-bold">%0.0</h3>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3 bg-secondary text-white rounded shadow-sm">
-                    <h6>Ortalama Kuru Madde</h6>
-                    <h3 id="toplamKM" class="fw-bold">%0.0</h3>
-                </div>
-            </div>
+<div class="tab-content border p-3 bg-white rounded shadow-sm">
+    <p class="text-muted small mb-3">Yem adını ve verilecek kiloyu girin, değerler otomatik hesaplanır (Değerleri manuel de değiştirebilirsiniz).</p>
+    <div class="row g-2 fw-bold text-center mb-2">
+        <div class="col-3">Yem Adı</div><div class="col-2">Miktar (KG)</div><div class="col-2">Enerji (ME)</div><div class="col-2">Protein (%)</div><div class="col-2">Kuru Madde</div>
+    </div>
+    
+    <div id="rasyonSatirlari">
+        {% for i in range(1, 5) %}
+        <div class="row g-2 mb-2 rasyon-satir">
+            <div class="col-3"><input type="text" class="form-control yem-adi-input" placeholder="Örn: Yonca" oninput="otomatikDoldur(this)"></div>
+            <div class="col-2"><input type="number" step="0.1" class="form-control miktar-input" placeholder="0" oninput="hesapla()"></div>
+            <div class="col-2"><input type="number" step="0.1" class="form-control enerji-input" placeholder="0" oninput="hesapla()"></div>
+            <div class="col-2"><input type="number" step="0.1" class="form-control prot-input" placeholder="0" oninput="hesapla()"></div>
+            <div class="col-2"><input type="number" step="0.1" class="form-control km-input" placeholder="0" oninput="hesapla()"></div>
         </div>
+        {% endfor %}
+    </div>
+
+    <hr>
+    <div class="d-flex justify-content-between fw-bold fs-5 text-primary">
+        <span>Toplam Tüketim: <span id="sonucKg">0</span> kg</span>
+        <span>Ort. Enerji: <span id="sonucME">0</span> ME</span>
+        <span>Ort. Protein: %<span id="sonucProt">0</span></span>
     </div>
 </div>
 
 <script>
-function rasyonHesapla() {
-    let inputs = document.querySelectorAll('.rasyon-input');
-    let toplamKg = 0;
-    let toplamME = 0;
-    let toplamHPKriter = 0;
-    let toplamKMKriter = 0;
+// Yem kısmında kiloyu girince otomatik çıkacak standart değerler veri tabanı (Üretici değiştirebilir)
+const standartYemler = {
+    'yonca': { me: 2.2, prot: 16, km: 85 },
+    'mısır silajı': { me: 2.5, prot: 8, km: 30 },
+    'arpa': { me: 3.1, prot: 11, km: 88 },
+    'saman': { me: 1.5, prot: 4, km: 90 }
+};
 
-    inputs.forEach(input => {
-        let kg = parseFloat(input.value) || 0;
-        let me = parseFloat(input.getAttribute('data-me')) || 0;
-        let hp = parseFloat(input.getAttribute('data-hp')) || 0;
-        let km = parseFloat(input.getAttribute('data-km')) || 0;
+function otomatikDoldur(inputEl) {
+    let ad = inputEl.value.toLowerCase().trim();
+    if(standartYemler[ad]) {
+        let satir = inputEl.closest('.rasyon-satir');
+        satir.querySelector('.enerji-input').value = standartYemler[ad].me;
+        satir.querySelector('.prot-input').value = standartYemler[ad].prot;
+        satir.querySelector('.km-input').value = standartYemler[ad].km;
+    }
+}
 
+function hesapla() {
+    let toplamKg = 0, toplamME = 0, toplamProt = 0;
+    document.querySelectorAll('.rasyon-satir').forEach(satir => {
+        let kg = parseFloat(satir.querySelector('.miktar-input').value) || 0;
+        let me = parseFloat(satir.querySelector('.enerji-input').value) || 0;
+        let prot = parseFloat(satir.querySelector('.prot-input').value) || 0;
         toplamKg += kg;
-        toplamME += kg * me;
-        toplamHPKriter += kg * (hp / 100);
-        toplamKMKriter += kg * (km / 100);
+        toplamME += (kg * me);
+        toplamProt += (kg * prot);
     });
 
-    document.getElementById('toplamKg').innerText = toplamKg.toFixed(1) + ' kg';
-    document.getElementById('toplamME').innerText = toplamME.toFixed(2) + ' Mcal';
-    
-    if (toplamKg > 0) {
-        document.getElementById('toplamHP').innerText = '%' + ((toplamHPKriter / toplamKg) * 100).toFixed(1);
-        document.getElementById('toplamKM').innerText = '%' + ((toplamKMKriter / toplamKg) * 100).toFixed(1);
-    } else {
-        document.getElementById('toplamHP').innerText = '%0.0';
-        document.getElementById('toplamKM').innerText = '%0.0';
-    }
+    document.getElementById('sonucKg').innerText = toplamKg.toFixed(1);
+    document.getElementById('sonucME').innerText = toplamKg > 0 ? (toplamME / toplamKg).toFixed(2) : 0;
+    document.getElementById('sonucProt').innerText = toplamKg > 0 ? (toplamProt / toplamKg).toFixed(1) : 0;
+
+    // Hayvan için zararlı ise uyarı ver (Örn: 15 kg'dan fazla karma girildiyse)
+    document.getElementById('rasyonUyari').classList.toggle('d-none', toplamKg <= 15);
 }
 </script>
 {% endblock %}
