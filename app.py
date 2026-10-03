@@ -120,6 +120,21 @@ def login():
             return redirect(url_for('index'))
     return render_template('login.html')
 
+# YENİ EKLENEN KAYIT OLMA ROTASI
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    hata = None
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if User.query.filter_by(username=username).first():
+            hata = "Bu kullanıcı adı zaten kullanılıyor!"
+        else:
+            db.session.add(User(username=username, password=password, is_admin=False))
+            db.session.commit()
+            return redirect(url_for('login'))
+    return render_template('register.html', hata=hata)
+
 @app.route('/logout')
 @login_required
 def logout():
