@@ -20,9 +20,9 @@
         {% if hata %}
             <div class="error">{{ hata }}</div>
         {% endif %}
-        <form method="POST">
-            <input type="text" name="username" placeholder="Kullanıcı Adı Belirleyin" required>
-            <input type="password" name="password" placeholder="Şifre Belirleyin" required>
+        <form method="POST" action="/register">
+            <input type="text" name="username" placeholder="Yeni Kullanıcı Adı" required>
+            <input type="password" name="password" placeholder="Yeni Şifre" required>
             <button type="submit">Kayıt Ol</button>
         </form>
         <a href="/login" class="back-link">← Giriş Ekranına Dön</a>
