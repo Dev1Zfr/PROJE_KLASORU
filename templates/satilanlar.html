@@ -1,44 +1,61 @@
 {% extends 'layout.html' %}
-
 {% block content %}
-<h2 class="mb-4">Satılan Hayvanlar & Kurban Hisseleri</h2>
+<h2 class="mb-4 fw-bold">Satılan Hayvanlar & Tahsilat Yönetimi</h2>
+
+<!-- KİME SATTIĞIMA GÖRE FİLTRELEME -->
+<form method="GET" action="/satilanlar" class="mb-4 d-flex gap-2">
+    <input type="text" name="q" class="form-control form-control-lg" placeholder="🔍 Müşteri Adı veya Tel İle Satın Alma Geçmişi Ara..." value="{{ q }}">
+    <button type="submit" class="btn btn-primary px-4">Filtrele</button>
+</form>
+
 <div class="row">
-    {% for hayvan in hayvanlar %}
+    {% for hayvan in kurbanlar + normal_satilanlar %}
     <div class="col-md-6 mb-4">
-        <div class="card shadow-sm border-success">
-            <div class="card-header bg-success text-white fw-bold d-flex justify-content-between">
-                <span>Küpe No: {{ hayvan.kupe_no }}</span>
-                <span>Satış Fiyatı: {{ hayvan.satis_fiyati }} ₺</span>
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between">
+                <span>Küpe No: {{ hayvan.kupe_no }} ({{ hayvan.satis_turu }})</span>
+                <span>Fiyat: {{ hayvan.satis_fiyati }} ₺</span>
             </div>
             <div class="card-body">
-                <p><strong>Irk:</strong> {{ hayvan.irk }} | <strong>Canlı KG:</strong> {{ hayvan.guncel_kg }} kg</p>
-                
-                {% if hayvan.is_kurban %}
-                <div class="alert alert-info py-2">
-                    <small>
-                        <strong>Karkas Et (%{{ hayvan.randiman }} Randıman):</strong> ~{{ hayvan.karkas_et_kg }} kg<br>
-                        <strong>Hisse Başı Et (7'ye Bölüm):</strong> ~{{ hayvan.hisse_basi_et }} kg / hisse<br>
-                        <strong>Hisse Başı Fiyat:</strong> {{ hayvan.hisse_fiyati }} ₺
-                    </small>
-                </div>
-
-                <h6>Hissedarlar (7 Kişi)</h6>
-                <ul class="list-group list-group-flush mb-2">
-                    {% for hisse in hayvan.hisseder %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-1">
-                        <small>{{ loop.index }}. {{ hisse.hissedar_adi }}</small>
-                        <small class="text-muted">{{ hisse.hissedar_tel }}</small>
-                    </li>
-                    {% else %}
-                    <li class="list-group-item py-1"><small class="text-muted">Henüz hisse ismi girilmedi.</small></li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr><th>İsim</th><th>Borç</th><th>Kalan</th><th>İşlem</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for hisse in hayvan.hisseler %}
+                        <tr>
+                            <td><strong>{{ hisse.hissedar_adi }}</strong><br><small>{{ hisse.hissedar_tel }}</small></td>
+                            <td>{{ hisse.toplam_borc }}₺</td>
+                            <td class="text-danger fw-bold">{{ hisse.kalan_borc }}₺</td>
+                            <td>
+                                <!-- Tahsilat Ekle -->
+                                <form action="/odeme-ekle/{{ hisse.id }}" method="POST" class="d-flex gap-1 mb-1">
+                                    <input type="number" name="ek_odeme" class="form-control form-control-sm" placeholder="₺" required style="width:60px;">
+                                    <input type="text" name="aciklama_not" class="form-control form-control-sm" placeholder="Not" style="width:70px;">
+                                    <button type="submit" class="btn btn-sm btn-success">+</button>
+                                </form>
+                                <!-- Ödeme Geçmişi Göster -->
+                                <button class="btn btn-sm btn-outline-info w-100" type="button" data-bs-toggle="collapse" data-bs-target="#gecmis-{{ hisse.id }}">Geçmişi Gör</button>
+                            </td>
+                        </tr>
+                        <!-- GİZLİ GEÇMİŞ KUTUSU -->
+                        <tr class="collapse bg-light" id="gecmis-{{ hisse.id }}">
+                            <td colspan="4" class="p-2">
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for odeme in hisse.odemeler %}
+                                    <li>✅ {{ odeme.tarih.strftime('%d.%m.%Y') }}: <strong>{{ odeme.tutar }}₺</strong> - <em>{{ odeme.aciklama_not }}</em></li>
+                                    {% else %}
+                                    <li class="text-muted">Henüz tahsilat girilmedi.</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="alert alert-warning">Satılan hayvan bulunamadı.</div>
     {% endfor %}
 </div>
 {% endblock %}
